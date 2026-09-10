@@ -1,0 +1,14 @@
+{
+  "baseline": 23920,
+  "status": "ok",
+  "history": [
+    {
+      "at": "2026-09-10T16:25:01+00:00",
+      "count": 23920,
+      "result": "first_publish"
+    }
+  ],
+  "last_error": null,
+  "last_count": 23920,
+  "last_run": "2026-09-10T16:25:01+00:00"
+}
