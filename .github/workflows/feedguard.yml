@@ -60,9 +60,9 @@ jobs:
           git checkout --orphan live-feed
           git rm -rf --cached . >/dev/null 2>&1 || true
           rm -rf public state.json feedguard.py .github README.md 2>/dev/null || true
-          mkdir -p public && cp /tmp/feed.xml public/feed.xml
-          touch public/.nojekyll
-          git add public
+          cp /tmp/feed.xml feed.xml
+          touch .nojekyll
+          git add feed.xml .nojekyll
           git commit -m "Feed: ${{ steps.guard.outputs.count }} products"
           git push --force origin live-feed
 
