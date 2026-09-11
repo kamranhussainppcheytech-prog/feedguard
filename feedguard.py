@@ -9,6 +9,7 @@ Modes:
 """
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -63,11 +64,42 @@ def fetch_feed(url, attempts=3):
     raise RuntimeError(f"could not download the feed after {attempts} tries: {last}")
 
 
+def _looks_truncated(xml_bytes):
+    """A complete feed ends with its closing tag. A cut-off one does not."""
+    return not xml_bytes.rstrip().endswith(b"</rss>")
+
+
+# Matches an & that is NOT already part of a valid entity like &amp; or &#39;
+BARE_AMP = re.compile(rb"&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#[0-9]+|#[xX][0-9a-fA-F]+);)")
+
+
 def count_items(xml_bytes):
-    """Strict parse. A truncated file must fail loudly, never half-parse."""
+    """
+    Strict parse. Truncated files must fail loudly - that is the whole point.
+    Bare & characters are repaired, because a complete feed with messy text is
+    a different problem from a feed that got cut off halfway.
+    """
     if not xml_bytes:
         raise ValueError("the feed was empty")
-    root = etree.fromstring(xml_bytes, parser=etree.XMLParser(huge_tree=True))
+
+    parser = etree.XMLParser(huge_tree=True)
+    try:
+        root = etree.fromstring(xml_bytes, parser=parser)
+    except etree.XMLSyntaxError as first_error:
+        if _looks_truncated(xml_bytes):
+            raise ValueError(
+                f"the feed is cut off - it does not end properly ({first_error})")
+        repaired = BARE_AMP.sub(b"&amp;", xml_bytes)
+        if repaired == xml_bytes:
+            raise ValueError(f"the feed is not valid XML: {first_error}")
+        try:
+            root = etree.fromstring(repaired, parser=etree.XMLParser(huge_tree=True))
+        except etree.XMLSyntaxError as second_error:
+            raise ValueError(f"the feed is not valid XML: {second_error}")
+        print("::warning::Your feed contains raw & characters that should be "
+              "written as &amp;. FeedGuard repaired them, but Google may reject "
+              "the original feed. Check your product titles and descriptions.")
+
     channel = root.find("channel")
     if channel is None:
         raise ValueError("no <channel> element found - this is not a valid feed")
@@ -79,6 +111,17 @@ def count_items(xml_bytes):
     if not ids:
         raise ValueError("the feed contained no products")
     return len(ids)
+
+
+def repaired_bytes(xml_bytes):
+    """The bytes we should publish: repaired if repair was needed and safe."""
+    if _looks_truncated(xml_bytes):
+        return xml_bytes
+    try:
+        etree.fromstring(xml_bytes, parser=etree.XMLParser(huge_tree=True))
+        return xml_bytes
+    except etree.XMLSyntaxError:
+        return BARE_AMP.sub(b"&amp;", xml_bytes)
 
 
 def emit(**outputs):
@@ -99,6 +142,7 @@ def check():
     try:
         raw = fetch_feed(FEED_URL)
         count = count_items(raw)
+        raw = repaired_bytes(raw)
     except Exception as exc:
         state["last_run"] = now()
         state["last_error"] = str(exc)
@@ -186,7 +230,7 @@ def trust():
 
     raw = fetch_feed(FEED_URL)
     count = count_items(raw)
-    publish(raw)
+    publish(repaired_bytes(raw))
     state.update(baseline=count, status="ok")
     state.setdefault("history", []).append(
         {"at": now(), "count": count, "result": "you_approved"})
