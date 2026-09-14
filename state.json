@@ -196,9 +196,14 @@
       "at": "2026-09-14T16:13:27+00:00",
       "count": 23984,
       "result": "published"
+    },
+    {
+      "at": "2026-09-14T18:14:34+00:00",
+      "count": 23984,
+      "result": "published"
     }
   ],
   "last_error": null,
   "last_count": 23984,
-  "last_run": "2026-09-14T16:13:27+00:00"
+  "last_run": "2026-09-14T18:14:34+00:00"
 }
