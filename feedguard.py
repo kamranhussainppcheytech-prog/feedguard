@@ -65,12 +65,36 @@ def fetch_feed(url, attempts=3):
 
 
 def _looks_truncated(xml_bytes):
-    """A complete feed ends with its closing tag. A cut-off one does not."""
-    return not xml_bytes.rstrip().endswith(b"</rss>")
+    """
+    A complete feed contains its closing tag somewhere near the end. A file
+    that was cut off mid-write does not contain it at all. Checking presence
+    within the last stretch of the file (rather than an exact end-match)
+    tolerates trailing whitespace, blank lines, or a stray newline that some
+    feed generators append.
+    """
+    tail = xml_bytes[-200:] if len(xml_bytes) > 200 else xml_bytes
+    return b"</rss>" not in tail
 
 
 # Matches an & that is NOT already part of a valid entity like &amp; or &#39;
 BARE_AMP = re.compile(rb"&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#[0-9]+|#[xX][0-9a-fA-F]+);)")
+
+
+def _context_snippet(xml_bytes, error):
+    """Pull the text immediately around a parse error so it's visible in logs
+    instead of just a line/column number nobody can act on."""
+    line_no = getattr(error, "lineno", 1) or 1
+    col_no = getattr(error, "offset", 0) or 0
+    lines = xml_bytes.split(b"\n")
+    if 0 < line_no <= len(lines):
+        line = lines[line_no - 1]
+        start = max(0, col_no - 40)
+        end = min(len(line), col_no + 40)
+        try:
+            return line[start:end].decode("utf-8", errors="replace")
+        except Exception:
+            return "(could not decode this section)"
+    return "(could not locate the error location)"
 
 
 def count_items(xml_bytes):
@@ -86,19 +110,24 @@ def count_items(xml_bytes):
     try:
         root = etree.fromstring(xml_bytes, parser=parser)
     except etree.XMLSyntaxError as first_error:
+        snippet = _context_snippet(xml_bytes, first_error)
         if _looks_truncated(xml_bytes):
             raise ValueError(
-                f"the feed is cut off - it does not end properly ({first_error})")
+                f"the feed is cut off - it does not end properly "
+                f"({first_error}) near: ...{snippet}...")
         repaired = BARE_AMP.sub(b"&amp;", xml_bytes)
         if repaired == xml_bytes:
-            raise ValueError(f"the feed is not valid XML: {first_error}")
+            raise ValueError(
+                f"the feed is not valid XML: {first_error} near: ...{snippet}...")
         try:
             root = etree.fromstring(repaired, parser=etree.XMLParser(huge_tree=True))
         except etree.XMLSyntaxError as second_error:
-            raise ValueError(f"the feed is not valid XML: {second_error}")
-        print("::warning::Your feed contains raw & characters that should be "
-              "written as &amp;. FeedGuard repaired them, but Google may reject "
-              "the original feed. Check your product titles and descriptions.")
+            raise ValueError(
+                f"the feed is not valid XML even after repair: {second_error} "
+                f"near: ...{snippet}...")
+        print(f"::warning::Your feed contains raw & characters near: ...{snippet}... "
+              f"FeedGuard repaired them, but Google may reject the original feed. "
+              f"Check your product titles and descriptions.")
 
     channel = root.find("channel")
     if channel is None:
