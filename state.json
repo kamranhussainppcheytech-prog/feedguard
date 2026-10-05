@@ -3,11 +3,6 @@
   "status": "ok",
   "history": [
     {
-      "at": "2026-09-29T06:17:04+00:00",
-      "count": 24173,
-      "result": "published"
-    },
-    {
       "at": "2026-09-29T08:16:07+00:00",
       "count": 24173,
       "result": "published"
@@ -251,9 +246,14 @@
       "at": "2026-10-05T18:17:17+00:00",
       "count": 24265,
       "result": "published"
+    },
+    {
+      "at": "2026-10-05T22:13:17+00:00",
+      "count": 24265,
+      "result": "published"
     }
   ],
   "last_error": null,
   "last_count": 24265,
-  "last_run": "2026-10-05T18:17:17+00:00"
+  "last_run": "2026-10-05T22:13:17+00:00"
 }
