@@ -1,12 +1,7 @@
 {
-  "baseline": 24361,
+  "baseline": 24375,
   "status": "ok",
   "history": [
-    {
-      "at": "2026-10-06T06:17:32+00:00",
-      "count": 24265,
-      "result": "published"
-    },
     {
       "at": "2026-10-06T08:14:41+00:00",
       "count": 24265,
@@ -251,9 +246,14 @@
       "at": "2026-10-12T04:56:39+00:00",
       "count": 24361,
       "result": "published"
+    },
+    {
+      "at": "2026-10-12T14:44:28+00:00",
+      "count": 24375,
+      "result": "published"
     }
   ],
   "last_error": null,
-  "last_count": 24361,
-  "last_run": "2026-10-12T04:56:39+00:00"
+  "last_count": 24375,
+  "last_run": "2026-10-12T14:44:28+00:00"
 }
